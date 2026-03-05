@@ -10,41 +10,51 @@ function checkLogin() {
 document.addEventListener('DOMContentLoaded', () => {
     checkLogin();
     loadProfileData();
-    loadPreferences();
     attachFormListener();
 });
 
-// Load profile data from localStorage
-function loadProfileData() {
+// Load profile data from API
+async function loadProfileData() {
     const userEmail = localStorage.getItem('userEmail');
-    const profileData = JSON.parse(localStorage.getItem('profileData')) || {};
+    if (!userEmail) return;
 
-    // Display user email
-    document.getElementById('displayEmail').textContent = userEmail || 'user@example.com';
+    try {
+        const response = await fetch(`/api/load-profile?email=${encodeURIComponent(userEmail)}`);
+        const profileData = await response.json();
 
-    // Fill form with existing data
-    document.getElementById('firstName').value = profileData.firstName || '';
-    document.getElementById('lastName').value = profileData.lastName || '';
-    document.getElementById('email').value = profileData.email || userEmail || '';
-    document.getElementById('phone').value = profileData.phone || '';
-    document.getElementById('address').value = profileData.address || '';
-    document.getElementById('city').value = profileData.city || '';
-    document.getElementById('zipCode').value = profileData.zipCode || '';
-    document.getElementById('bio').value = profileData.bio || '';
-    document.getElementById('licenseNumber').value = profileData.licenseNumber || '';
-    document.getElementById('vehicleInfo').value = profileData.vehicleInfo || '';
+        // Display user email
+        document.getElementById('displayEmail').textContent = userEmail;
 
-    // Update display name
-    const firstName = document.getElementById('firstName').value;
-    const lastName = document.getElementById('lastName').value;
-    const displayName = firstName && lastName 
-        ? `${firstName} ${lastName}`
-        : (firstName || 'User Profile');
-    
-    document.getElementById('displayName').textContent = displayName;
+        // Fill form with existing data
+        document.getElementById('firstName').value = profileData.firstName || '';
+        document.getElementById('lastName').value = profileData.lastName || '';
+        document.getElementById('email').value = profileData.email || userEmail || '';
+        document.getElementById('phone').value = profileData.phone || '';
+        document.getElementById('address').value = profileData.address || '';
+        document.getElementById('city').value = profileData.city || '';
+        document.getElementById('zipCode').value = profileData.zipCode || '';
+        document.getElementById('bio').value = profileData.bio || '';
+        document.getElementById('licenseNumber').value = profileData.licenseNumber || '';
+        document.getElementById('vehicleInfo').value = profileData.vehicleInfo || '';
 
-    // Update avatar with initials
-    updateAvatar(firstName, lastName);
+        // Load preferences
+        loadPreferences(profileData);
+
+        // Update display name
+        const firstName = document.getElementById('firstName').value;
+        const lastName = document.getElementById('lastName').value;
+        const displayName = firstName && lastName 
+            ? `${firstName} ${lastName}`
+            : (firstName || 'User Profile');
+        
+        document.getElementById('displayName').textContent = displayName;
+
+        // Update avatar with initials
+        updateAvatar(firstName, lastName);
+    } catch (error) {
+        console.error('Failed to load profile:', error);
+        notify.error('✕ Failed to load profile data');
+    }
 }
 
 function updateAvatar(firstName, lastName) {
@@ -87,7 +97,8 @@ function updateDisplayName() {
 }
 
 // Save profile data
-function saveProfileData() {
+async function saveProfileData() {
+    const userEmail = localStorage.getItem('userEmail');
     const profileData = {
         firstName: document.getElementById('firstName').value.trim(),
         lastName: document.getElementById('lastName').value.trim(),
@@ -99,6 +110,9 @@ function saveProfileData() {
         bio: document.getElementById('bio').value.trim(),
         licenseNumber: document.getElementById('licenseNumber').value.trim(),
         vehicleInfo: document.getElementById('vehicleInfo').value.trim(),
+        notificationsEnabled: document.getElementById('notificationsEnabled').checked,
+        soundEnabled: document.getElementById('soundEnabled').checked,
+        locationTracking: document.getElementById('locationTracking').checked,
         lastUpdated: new Date().toISOString()
     };
 
@@ -113,35 +127,38 @@ function saveProfileData() {
         return;
     }
 
-    // Save to localStorage
-    localStorage.setItem('profileData', JSON.stringify(profileData));
+    try {
+        await fetch('/api/save-profile', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                email: userEmail,
+                data: profileData
+            })
+        });
 
-    // Show success message
-    notify.success('✓ Profile updated successfully!');
+        // Show success message
+        notify.success('✓ Profile updated successfully!');
 
-    // Scroll to top
-    window.scrollTo({ top: 0, behavior: 'smooth' });
+        // Scroll to top
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+    } catch (error) {
+        notify.error('✕ Failed to save profile');
+    }
 }
 
 // Save preferences
 function savePreferences() {
-    const preferences = {
-        notificationsEnabled: document.getElementById('notificationsEnabled').checked,
-        soundEnabled: document.getElementById('soundEnabled').checked,
-        locationTracking: document.getElementById('locationTracking').checked,
-        lastUpdated: new Date().toISOString()
-    };
-
-    localStorage.setItem('userPreferences', JSON.stringify(preferences));
-    notify.success('✓ Preferences saved successfully!');
+    // Preferences are now saved with profile
+    saveProfileData();
 }
 
 // Load preferences
-function loadPreferences() {
-    const preferences = JSON.parse(localStorage.getItem('userPreferences')) || {
-        notificationsEnabled: true,
-        soundEnabled: true,
-        locationTracking: false
+function loadPreferences(profileData) {
+    const preferences = {
+        notificationsEnabled: profileData.notificationsEnabled !== undefined ? profileData.notificationsEnabled : true,
+        soundEnabled: profileData.soundEnabled !== undefined ? profileData.soundEnabled : true,
+        locationTracking: profileData.locationTracking !== undefined ? profileData.locationTracking : false
     };
 
     document.getElementById('notificationsEnabled').checked = preferences.notificationsEnabled;

@@ -186,7 +186,7 @@
 <body>
     <div class="register-container">
         <div class="register-header">
-            <h1>Premium</h1>
+            <h1>Black spot detector</h1>
             <p>Create Your Account</p>
         </div>
 
@@ -300,6 +300,37 @@
                 }, 2000);
             }
         });
+    </script>
+
+    <!-- installation UI and PWA helpers -->
+    <button id="installBtn" onclick="showInstallPrompt()" style="display:none;position:fixed;top:10px;right:10px;padding:8px 12px;background:#667eea;color:#fff;border:none;border-radius:4px;z-index:1000;">Install App</button>
+    <script>
+        // register service worker if available
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('/service-worker.js')
+                .then(reg => console.log('Service worker registered', reg))
+                .catch(err => console.log('SW registration failed', err));
+        }
+
+        let deferredPrompt;
+        window.addEventListener('beforeinstallprompt', (e) => {
+            e.preventDefault();
+            deferredPrompt = e;
+            const btn = document.getElementById('installBtn');
+            if (btn) btn.style.display = 'block';
+        });
+
+        function showInstallPrompt() {
+            if (deferredPrompt) {
+                deferredPrompt.prompt();
+                deferredPrompt.userChoice.then(choiceResult => {
+                    if (choiceResult.outcome === 'accepted') {
+                        console.log('User accepted the install prompt');
+                    }
+                    deferredPrompt = null;
+                });
+            }
+        }
     </script>
 </body>
 </html>

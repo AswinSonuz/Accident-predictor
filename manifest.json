@@ -14,7 +14,9 @@
     }
   ],
   "start_url": "index.html",
+  "scope": "/",
   "display": "standalone",
   "background_color": "#667eea",
-  "theme_color": "#667eea"
+  "theme_color": "#667eea",
+  "description": "Black Spot Detector PWA – Predict accident risk and view live location"
 }

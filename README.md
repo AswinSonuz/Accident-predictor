@@ -1,8 +1,3 @@
-
-https://aswinsonuz.github.io/Accident-predictor/
-
-
-
 # Premium Safety System - Documentation
 
 A comprehensive web application for accident risk prediction using machine learning and real-time location tracking.
@@ -71,19 +66,95 @@ Premium/
 ├── login.html              # Login page
 ├── register.html           # Fake registration page
 ├── profile.html            # User profile management
+├── upload.html             # ML model upload page
 ├── dashboard.html          # Welcome dashboard after login
+├── server.py               # Flask backend server
+├── blackspot.db            # SQLite database (created automatically)
+├── accident_risk_model.joblib  # Your ML model (upload via upload.html)
 ├── styles.css              # Global styles
 ├── home.js                 # Home page functionality
 ├── profile.js              # Profile page functionality
-└── notifications.js        # Notification system
+├── notifications.js        # Notification system
+├── manifest.json           # PWA manifest
+├── service-worker.js       # PWA service worker
+└── favicon.*               # Icons
 ```
 
 ## How to Use
+
+### Running the Backend Server
+1. Install Python dependencies: `pip install flask flask-cors joblib scikit-learn`
+2. Run the server: `python server.py`
+3. Open `http://localhost:5000` in your browser
+4. Login with `admin@example.com` / `password123`
+
+### Uploading Your ML Model
+1. Train your accident risk prediction model and save as `accident_risk_model.joblib`
+2. Go to `http://localhost:5000/upload.html`
+3. Upload the `.joblib` file
+4. The app will now use your model for predictions
 
 ### Mobile Installation (Add to Home Screen)
 1. Open the app URL in a mobile browser (e.g. Chrome or Safari).
 2. Use the browser menu and select "Add to Home screen" or "Install app".
 3. Launch the app from your home screen for a full‑screen experience without browser UI.
+
+### Laptop/Desktop Data Sync and Model Upload
+The stand‑alone demo currently stores everything in `localStorage`, which only lives on the device where the user interacts with the site. To support adding data from one machine (e.g. your laptop) and having it automatically update on another computer, you'll need a simple backend with persistent storage and endpoints that the front‑end can call.
+
+1. **Backend API**
+   - Pick a language/framework (Node.js/Express, Python/Flask, etc.) and a database (MongoDB, PostgreSQL, SQLite, etc.).
+   - Create endpoints such as:
+     ```
+     POST /api/save-profile      # save or update profile data
+     GET  /api/profile?email=... # fetch profile data
+     POST /api/save-prediction   # append a new prediction entry
+     GET  /api/predictions?email=... # retrieve history
+     ```
+   - Each endpoint reads/writes to the database so that all clients see the same state.
+   - Add CORS headers if your front‑end is served from a different origin.
+
+2. **Front‑end modifications**
+   - Replace all `localStorage` reads/writes in `home.js`, `profile.js` and other scripts with `fetch` calls to the corresponding API endpoints. Example:
+     ```javascript
+     async function loadProfile(email) {
+         const res = await fetch(`/api/profile?email=${encodeURIComponent(email)}`);
+         return res.ok ? res.json() : null;
+     }
+
+     async function savePrediction(entry) {
+         await fetch('/api/save-prediction', {
+             method: 'POST',
+             headers: { 'Content-Type': 'application/json' },
+             body: JSON.stringify(entry)
+         });
+     }
+     ```
+   - When the user logs in on a second device, the front‑end can fetch the latest profile and prediction history automatically.
+
+3. **Model upload**
+   - Add a simple file upload page or form to the backend where you can POST your `accident_risk_model.joblib`. For example, using Flask:
+     ```python
+     @app.route('/upload-model', methods=['POST'])
+     def upload_model():
+         f = request.files['model']
+         f.save('accident_risk_model.joblib')
+         return 'OK', 200
+     ```
+   - The prediction API (`/api/predict`) should load the model from disk at startup (as shown in the existing README) and use it to answer requests from any client.
+   - Once the file is uploaded, every connected computer will use the updated model automatically, since they all call the same server.
+
+4. **Automatic updates between devices**
+   - Clients can poll the server for new data or use WebSockets/Server‑Sent Events for real‑time pushes. Polling every few minutes is easiest.
+   - Example in `home.js`:
+     ```javascript
+     setInterval(async () => {
+       const stats = await fetch(`/api/predictions?email=${userEmail}`).then(r => r.json());
+       updateStatsUI(stats);
+     }, 300000); // 5 minutes
+     ```
+
+By moving storage and model hosting to a central server, any change made on one device is immediately retrievable from another, and you can upload your trained ML model once and have all clients use it.
 
 
 ### Basic Setup
@@ -115,48 +186,35 @@ When accident risk is HIGH:
 ## Integration with ML Model
 
 ### Current Status
-The app currently uses a **simulation-based risk calculation** that mimics ML behavior based on various environmental factors.
+The app now includes a Flask backend (`server.py`) that can load your `accident_risk_model.joblib` file. If no model is uploaded, it falls back to simulation.
 
-### To Integrate Actual ML Model
+### To Integrate Your ML Model
 
-1. **Upload the ML Model**:
-   - Place `accident_risk_model.joblib` in your backend directory
-
-2. **Create a Backend API** (using Flask/Django):
+1. **Train and Save Your Model**:
    ```python
-   from flask import Flask, request, jsonify
    import joblib
-   
-   app = Flask(__name__)
-   model = joblib.load('accident_risk_model.joblib')
-   
-   @app.route('/api/predict', methods=['POST'])
-   def predict():
-       data = request.json
-       # Prepare features
-       prediction = model.predict([features])
-       return jsonify({'probability': float(prediction[0])})
+   from sklearn.ensemble import RandomForestClassifier
+   # ... train your model ...
+   joblib.dump(model, 'accident_risk_model.joblib')
    ```
 
-3. **Update home.js**:
-   Replace the `calculateRiskPrediction()` function:
-   ```javascript
-   async function calculateRiskPrediction(weather, time, roadType, trafficDensity, speed, visibility) {
-       const response = await fetch('/api/predict', {
-           method: 'POST',
-           headers: { 'Content-Type': 'application/json' },
-           body: JSON.stringify({
-               weather, time, roadType, trafficDensity, speed, visibility
-           })
-       });
-       const data = await response.json();
-       return {
-           probability: data.probability,
-           riskLevel: data.probability > 60 ? 'High' : (data.probability > 35 ? 'Medium' : 'Low'),
-           message: generateMessage(data.probability)
-       };
-   }
-   ```
+2. **Upload the Model**:
+   - Start the server: `python server.py`
+   - Go to `http://localhost:5000/upload.html`
+   - Upload your `accident_risk_model.joblib` file
+   - The server will load it automatically
+
+3. **Model Input Format**:
+   The server expects features in this order: `[speed, visibility, weather_encoded, time_encoded, road_encoded, traffic_encoded]`
+   - Weather: clear=0, rainy=1, foggy=2, snowy=3, cloudy=4
+   - Time: morning=0, afternoon=1, evening=2, night=3
+   - Road: highway=0, urban=1, rural=2, residential=3
+   - Traffic: light=0, moderate=1, heavy=2, congested=3
+
+4. **Test Predictions**:
+   - Make predictions on the home page
+   - Data syncs across devices via the database
+   - View stats and history
 
 4. **Google Maps API Key**:
    - Get a free API key from [Google Cloud Console](https://console.cloud.google.com/)
@@ -273,4 +331,3 @@ Developed for Safety Systems Demo - 2026
 ## Support
 
 For issues or questions, please contact the development team.
-

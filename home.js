@@ -89,7 +89,7 @@ function updateCoordinates(lat, lng) {
 }
 
 // Accident Risk Prediction
-function predictAccidentRisk() {
+async function predictAccidentRisk() {
     const weather = document.getElementById('weather').value;
     const time = document.getElementById('time').value;
     const roadType = document.getElementById('roadType').value;
@@ -108,133 +108,44 @@ function predictAccidentRisk() {
         return;
     }
 
-    // Calculate risk using ML Model Simulation
-    const riskData = calculateRiskPrediction(weather, time, roadType, trafficDensity, speed, visibility);
+    try {
+        // Calculate risk using API
+        const riskData = await calculateRiskPrediction(weather, time, roadType, trafficDensity, speed, visibility);
 
-    // Display results
-    displayPredictionResult(riskData);
+        // Display results
+        displayPredictionResult(riskData);
 
-    // Update statistics
-    updateStatistics(riskData.riskLevel);
+        // Update statistics
+        await updateStatistics(riskData.riskLevel);
 
-    // Show appropriate notification based on risk level
-    if (riskData.riskLevel === 'High') {
-        const lat = document.getElementById('latitude').textContent;
-        const lng = document.getElementById('longitude').textContent;
-        notify.highRisk(`Risk Probability: ${riskData.probability.toFixed(1)}%`, `${lat}, ${lng}`);
-    } else if (riskData.riskLevel === 'Medium') {
-        notify.mediumRisk(`⚠ Medium risk detected: ${riskData.probability.toFixed(1)}% probability`);
-    } else {
-        notify.lowRisk(`✓ Low risk area: ${riskData.probability.toFixed(1)}% probability`);
+        // Show appropriate notification based on risk level
+        if (riskData.riskLevel === 'High') {
+            const lat = document.getElementById('latitude').textContent;
+            const lng = document.getElementById('longitude').textContent;
+            notify.highRisk(`Risk Probability: ${riskData.probability.toFixed(1)}%`, `${lat}, ${lng}`);
+        } else if (riskData.riskLevel === 'Medium') {
+            notify.mediumRisk(`⚠ Medium risk detected: ${riskData.probability.toFixed(1)}% probability`);
+        } else {
+            notify.lowRisk(`✓ Low risk area: ${riskData.probability.toFixed(1)}% probability`);
+        }
+    } catch (error) {
+        notify.error('✕ Failed to get prediction: ' + error.message);
     }
 }
 
-// ML Model Simulation - Replace this with actual model when available
-function calculateRiskPrediction(weather, time, roadType, trafficDensity, speed, visibility) {
-    let riskScore = 0;
-    let riskFactors = [];
-
-    // Weather impact (0-30 points)
-    const weatherScores = {
-        'clear': 5,
-        'cloudy': 10,
-        'rainy': 25,
-        'foggy': 30,
-        'snowy': 35
-    };
-    riskScore += weatherScores[weather] || 10;
-    riskFactors.push(`Weather (${weather}): +${weatherScores[weather]}`);
-
-    // Time of day impact (0-25 points)
-    const timeScores = {
-        'morning': 8,
-        'afternoon': 5,
-        'evening': 15,
-        'night': 25
-    };
-    riskScore += timeScores[time] || 10;
-    riskFactors.push(`Time (${time}): +${timeScores[time]}`);
-
-    // Road type impact (0-20 points)
-    const roadScores = {
-        'highway': 20,
-        'urban': 15,
-        'rural': 25,
-        'residential': 10
-    };
-    riskScore += roadScores[roadType] || 15;
-    riskFactors.push(`Road Type (${roadType}): +${roadScores[roadType]}`);
-
-    // Traffic density impact (0-15 points)
-    const trafficScores = {
-        'light': 5,
-        'moderate': 10,
-        'heavy': 15,
-        'congested': 12 // Congestion reduces speed
-    };
-    riskScore += trafficScores[trafficDensity] || 10;
-    riskFactors.push(`Traffic (${trafficDensity}): +${trafficScores[trafficDensity]}`);
-
-    // Speed impact (0-10 points)
-    let speedScore = 0;
-    if (speed > 100) {
-        speedScore = 10;
-    } else if (speed > 80) {
-        speedScore = 7;
-    } else if (speed > 60) {
-        speedScore = 4;
-    } else {
-        speedScore = 2;
+// API call to backend for risk prediction
+async function calculateRiskPrediction(weather, time, roadType, trafficDensity, speed, visibility) {
+    const response = await fetch('/api/predict', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            weather, time, roadType, trafficDensity, speed, visibility
+        })
+    });
+    if (!response.ok) {
+        throw new Error('Prediction failed');
     }
-    riskScore += speedScore;
-    riskFactors.push(`Speed (${speed} km/h): +${speedScore}`);
-
-    // Visibility impact (inverse - lower visibility = higher risk)
-    let visibilityScore = 0;
-    if (visibility < 100) {
-        visibilityScore = 15;
-    } else if (visibility < 300) {
-        visibilityScore = 10;
-    } else if (visibility < 1000) {
-        visibilityScore = 5;
-    } else {
-        visibilityScore = 0;
-    }
-    riskScore += visibilityScore;
-    riskFactors.push(`Visibility (${visibility}m): +${visibilityScore}`);
-
-    // Normalize to percentage (0-100)
-    let probability = Math.min(100, (riskScore / 100) * 100);
-
-    // Add some randomness for realism
-    probability += (Math.random() - 0.5) * 10;
-    probability = Math.max(0, Math.min(100, probability));
-
-    // Determine risk level
-    let riskLevel = 'Low';
-    if (probability > 60) {
-        riskLevel = 'High';
-    } else if (probability > 35) {
-        riskLevel = 'Medium';
-    }
-
-    // Generate message
-    let message = '';
-    if (riskLevel === 'High') {
-        message = '⚠ CAUTION: Current conditions pose significant accident risk. Reduce speed and stay alert.';
-    } else if (riskLevel === 'Medium') {
-        message = '⚠ WARNING: Moderate accident risk detected. Drive carefully and maintain safe distance.';
-    } else {
-        message = '✓ SAFE: Low accident risk. Conditions are favorable for safe driving.';
-    }
-
-    return {
-        riskLevel: riskLevel,
-        probability: probability,
-        riskScore: riskScore,
-        message: message,
-        factors: riskFactors
-    };
+    return await response.json();
 }
 
 function displayPredictionResult(riskData) {
@@ -256,11 +167,7 @@ function displayPredictionResult(riskData) {
     riskProbability.textContent = riskData.probability.toFixed(1) + '%';
 
     // Update message
-    riskMessage.innerHTML = `
-        <strong>Assessment:</strong> ${riskData.message} <br><br>
-        <strong>Risk Factors:</strong><br>
-        ${riskData.factors.join('<br>')}
-    `;
+    riskMessage.innerHTML = `<strong>Assessment:</strong> ${riskData.message}`;
 
     // Show result container
     resultContainer.classList.remove('hidden');
@@ -270,37 +177,53 @@ function displayPredictionResult(riskData) {
 }
 
 // Statistics Management
-function updateStatistics(riskLevel) {
-    let stats = JSON.parse(localStorage.getItem('predictionStats')) || {
-        totalPredictions: 0,
-        highRiskCount: 0,
-        totalRiskScore: 0
+async function updateStatistics(riskLevel) {
+    const userEmail = localStorage.getItem('userEmail');
+    if (!userEmail) return;
+
+    const predictionData = {
+        riskLevel,
+        timestamp: new Date().toISOString(),
+        probability: 0 // Will be set by API, but for now
     };
 
-    stats.totalPredictions++;
-    if (riskLevel === 'High') {
-        stats.highRiskCount++;
+    try {
+        await fetch('/api/save-prediction', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                email: userEmail,
+                data: predictionData
+            })
+        });
+        await loadStatistics();
+    } catch (error) {
+        console.error('Failed to save prediction:', error);
     }
-
-    localStorage.setItem('predictionStats', JSON.stringify(stats));
-    loadStatistics();
 }
 
-function loadStatistics() {
-    const stats = JSON.parse(localStorage.getItem('predictionStats')) || {
-        totalPredictions: 0,
-        highRiskCount: 0,
-        totalRiskScore: 0
-    };
+async function loadStatistics() {
+    const userEmail = localStorage.getItem('userEmail');
+    if (!userEmail) return;
 
-    document.getElementById('totalPredictions').textContent = stats.totalPredictions;
-    document.getElementById('highRiskCount').textContent = stats.highRiskCount;
+    try {
+        const response = await fetch(`/api/load-predictions?email=${encodeURIComponent(userEmail)}`);
+        const predictions = await response.json();
 
-    const averageRisk = stats.totalPredictions > 0 
-        ? ((stats.highRiskCount / stats.totalPredictions) * 100).toFixed(1)
-        : 0;
-    
-    document.getElementById('averageRisk').textContent = averageRisk + '%';
+        const totalPredictions = predictions.length;
+        const highRiskCount = predictions.filter(p => p.riskLevel === 'High').length;
+
+        document.getElementById('totalPredictions').textContent = totalPredictions;
+        document.getElementById('highRiskCount').textContent = highRiskCount;
+
+        const averageRisk = totalPredictions > 0 
+            ? ((highRiskCount / totalPredictions) * 100).toFixed(1)
+            : 0;
+        
+        document.getElementById('averageRisk').textContent = averageRisk + '%';
+    } catch (error) {
+        console.error('Failed to load statistics:', error);
+    }
 }
 
 function logout() {
