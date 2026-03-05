@@ -1,6 +1,6 @@
 {
-  "name": "Premium Safety System",
-  "short_name": "Premium",
+  "name": "Black spot detector",
+  "short_name": "Black spot detector",
   "icons": [
     {
       "src": "favicon.png",
@@ -19,4 +19,5 @@
   "background_color": "#667eea",
   "theme_color": "#667eea",
   "description": "Black Spot Detector PWA – Predict accident risk and view live location"
+
 }
