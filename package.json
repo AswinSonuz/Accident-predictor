@@ -1,0 +1,45 @@
+{
+  "name": "black-spot-detector",
+  "version": "1.0.0",
+  "description": "Black Spot Detector PWA with ML",
+  "main": "electron-main.js",
+  "scripts": {
+    "start": "electron .",
+    "dev": "electron .",
+    "build": "electron-builder",
+    "dist": "electron-builder --publish=never"
+  },
+  "keywords": ["pwa", "ml", "safety"],
+  "author": "Your Name",
+  "license": "MIT",
+  "devDependencies": {
+    "electron": "^25.0.0",
+    "electron-builder": "^24.0.0"
+  },
+  "build": {
+    "appId": "com.blackspot.detector",
+    "productName": "Black Spot Detector",
+    "directories": {
+      "output": "dist"
+    },
+    "files": [
+      "**/*",
+      "!dist/**/*",
+      "!build/**/*",
+      "!*.md",
+      "!package-lock.json"
+    ],
+    "win": {
+      "target": "nsis",
+      "icon": "favicon.ico"
+    },
+    "mac": {
+      "target": "dmg",
+      "icon": "favicon.icns"
+    },
+    "linux": {
+      "target": "AppImage",
+      "icon": "favicon.png"
+    }
+  }
+}

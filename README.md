@@ -61,7 +61,7 @@ Real-time alerts with:
 ## File Structure
 
 ```
-Premium/
+Black Spot Detector/
 ├── index.html              # Main home page with maps & prediction
 ├── login.html              # Login page
 ├── register.html           # Fake registration page
@@ -69,6 +69,8 @@ Premium/
 ├── upload.html             # ML model upload page
 ├── dashboard.html          # Welcome dashboard after login
 ├── server.py               # Flask backend server
+├── electron-main.js        # Electron main process
+├── package.json            # Node.js/Electron config
 ├── blackspot.db            # SQLite database (created automatically)
 ├── accident_risk_model.joblib  # Your ML model (upload via upload.html)
 ├── styles.css              # Global styles
@@ -82,15 +84,42 @@ Premium/
 
 ## How to Use
 
-### Running the Backend Server
-1. Install Python dependencies: `pip install flask flask-cors joblib scikit-learn`
+### Option 1: Web App (PWA)
+1. Install Python dependencies: `pip install flask flask-cors joblib`
 2. Run the server: `python server.py`
 3. Open `http://localhost:5000` in your browser
 4. Login with `admin@example.com` / `password123`
+5. **Android:** open in Chrome/Edge, select menu → "Add to Home screen"; the PWA will install and run full‑screen like a native app.
+6. **iOS:** open in Safari, tap Share → "Add to Home Screen".
+
+To go beyond the built‑in browser install you can wrap the PWA:
+
+*Using Capacitor (recommended for Android):*
+```bash
+npm install @capacitor/core @capacitor/cli
+npx cap init "Black Spot Detector" com.example.blackspot
+# after building your web files or pointing to localhost
+npx cap add android
+npx cap open android  # opens Android Studio to build APK
+```
+This produces a real `apk` or produces an APK via Android Studio.
+
+*Alternatively*, use online PWA-to-APK services such as [PWABuilder](https://www.pwabuilder.com/) or [PWA2APK](https://www.pwa2apk.com/).
+
+### Option 2: Desktop App
+1. Install Node.js and Python dependencies
+2. Install Electron: `npm install`
+3. Run the desktop app: `npm start`
+4. The app will start the Python server automatically and open in a window
+
+### Building Installable Desktop App
+1. Install electron-builder: `npm install -g electron-builder`
+2. Build for your platform: `npm run dist`
+3. Find the installer in the `dist` folder
 
 ### Uploading Your ML Model
 1. Train your accident risk prediction model and save as `accident_risk_model.joblib`
-2. Go to `http://localhost:5000/upload.html`
+2. In the web app, go to `http://localhost:5000/upload.html` (or in desktop app, navigate to upload.html)
 3. Upload the `.joblib` file
 4. The app will now use your model for predictions
 
